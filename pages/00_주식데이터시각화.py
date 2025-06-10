@@ -1,58 +1,56 @@
+# 📁 파일명 예시: pages/00_과학_주가시각화.py
+
 import streamlit as st
 import yfinance as yf
-import plotly.graph_objects as go
 import pandas as pd
+import plotly.express as px
 from datetime import datetime, timedelta
 
-st.set_page_config(page_title="📈 국내 주요 기업 주가 추이", layout="wide")
+# 제목
+st.title("🧬 최근 1년 과학 관련 주요 기업 주가 변화")
 
-st.title("🇰🇷 국내 주요 기업 10개 - 최근 주가 변화")
+# 과학 관련 기업 리스트 (KOSPI/KQ 종목: 티커는 Yahoo Finance 기준)
+companies = {
+    "삼성바이오로직스": "207940.KQ",
+    "셀트리온": "068270.KQ",
+    "SK바이오사이언스": "302440.KQ"
+}
 
-# 최근 1년 기준
+# 데이터 가져올 날짜 범위
 end_date = datetime.today()
 start_date = end_date - timedelta(days=365)
 
-# 국내 주요 기업
-kr_companies = {
-    "삼성전자": "005930.KS",
-    "SK하이닉스": "000660.KS",
-    "LG화학": "051910.KS",
-    "삼성바이오로직스": "207940.KS",
-    "현대차": "005380.KS",
-    "NAVER": "035420.KQ",
-    "카카오": "035720.KQ",
-    "삼성SDI": "006400.KS",
-    "POSCO홀딩스": "005490.KS",
-    "기아": "000270.KS",
-}
+# 전체 데이터를 담을 리스트
+all_data = []
 
-# 기업 선택
-selected = st.multiselect(
-    "비교할 기업을 선택하세요",
-    options=list(kr_companies.keys()),
-    default=["삼성전자", "SK하이닉스", "현대차"]
-)
-
-# 주가 가져오기 함수
-@st.cache_data
-def load_data(ticker):
+# 기업별 데이터 가져오기
+for name, ticker in companies.items():
     df = yf.download(ticker, start=start_date, end=end_date)
-    return df
+    if df.empty:
+        st.warning(f"{name} ({ticker}) 주가 데이터를 가져올 수 없습니다.")
+        continue
 
-# 그래프 그리기
-if selected:
-    fig = go.Figure()
-    for company in selected:
-        ticker = kr_companies[company]
-        df = load_data(ticker)
-        if not df.empty:
-            fig.add_trace(go.Scatter(x=df.index, y=df["Close"], mode="lines", name=company))
-    fig.update_layout(
-        title="📊 최근 1년 주가 변화 (종가 기준)",
-        xaxis_title="날짜",
-        yaxis_title="종가 (KRW)",
-        hovermode="x unified"
+    df = df[["Close"]].copy()
+    df.reset_index(inplace=True)
+    df["Date"] = pd.to_datetime(df["Date"]).dt.date  # 날짜만 추출
+    df["Company"] = name
+    all_data.append(df)
+
+# 리스트를 하나의 데이터프레임으로 병합
+if all_data:
+    combined_df = pd.concat(all_data)
+
+    # 시각화
+    fig = px.line(
+        combined_df,
+        x="Date",
+        y="Close",
+        color="Company",
+        title="📈 최근 1년 주가 변화 (종가 기준)",
+        labels={"Close": "종가 (KRW)", "Date": "날짜"}
     )
+    fig.update_xaxes(tickformat="%Y-%m", tickangle=45)
+
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("왼쪽에서 하나 이상의 회사를 선택해주세요.")
+    st.error("주가 데이터를 불러오지 못했습니다.")
