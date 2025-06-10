@@ -1,66 +1,58 @@
 import streamlit as st
 import yfinance as yf
-import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime, timedelta
 
-st.set_page_config(page_title="🔬 과학 관련 기업 주가 추이", layout="wide")
-st.title("🧪 과학 연구 중심 글로벌 기업 - 최근 1년 주가 변화")
+st.set_page_config(page_title="📈 국내 주요 기업 주가 추이", layout="wide")
 
-# 날짜 범위 설정
+st.title("🇰🇷 국내 주요 기업 10개 - 최근 주가 변화")
+
+# 최근 1년 기준
 end_date = datetime.today()
 start_date = end_date - timedelta(days=365)
 
-# 과학 연구 관련 기업
-science_stocks = {
-    "Thermo Fisher (TMO)": "TMO",
-    "Illumina (ILMN)": "ILMN",
-    "Bio-Rad (BIO)": "BIO",
-    "Agilent (A)": "A",
-    "Danaher (DHR)": "DHR",
-    "Waters (WAT)": "WAT",
-    "Revvity (RVTY)": "RVTY",  # 전 PerkinElmer
-    "Bruker (BRKR)": "BRKR",
-    "Charles River Labs (CRL)": "CRL"
+# 국내 주요 기업
+kr_companies = {
+    "삼성전자": "005930.KS",
+    "SK하이닉스": "000660.KS",
+    "LG화학": "051910.KS",
+    "삼성바이오로직스": "207940.KS",
+    "현대차": "005380.KS",
+    "NAVER": "035420.KQ",
+    "카카오": "035720.KQ",
+    "삼성SDI": "006400.KS",
+    "POSCO홀딩스": "005490.KS",
+    "기아": "000270.KS",
 }
 
-# 선택 옵션
+# 기업 선택
 selected = st.multiselect(
-    "비교할 과학 기업을 선택하세요:",
-    options=list(science_stocks.keys()),
-    default=["Thermo Fisher (TMO)", "Agilent (A)", "Danaher (DHR)"]
+    "비교할 기업을 선택하세요",
+    options=list(kr_companies.keys()),
+    default=["삼성전자", "SK하이닉스", "현대차"]
 )
 
+# 주가 가져오기 함수
 @st.cache_data
-def load_data(ticker, name):
+def load_data(ticker):
     df = yf.download(ticker, start=start_date, end=end_date)
-    if df.empty:
-        return pd.DataFrame()
-    df = df[["Close"]].copy()
-    df.reset_index(inplace=True)
-    df["Company"] = name
     return df
 
-# 데이터 수집 및 시각화
+# 그래프 그리기
 if selected:
-    all_data = pd.DataFrame()
-
-    for name in selected:
-        ticker = science_stocks[name]
-        df = load_data(ticker, name)
-        all_data = pd.concat([all_data, df], ignore_index=True)
-
-    if {"Date", "Close", "Company"}.issubset(all_data.columns):
-        fig = px.line(
-            all_data,
-            x="Date",
-            y="Close",
-            color="Company",
-            title="📈 과학 관련 연구 기업의 최근 1년간 주가 비교"
-        )
-        fig.update_layout(xaxis_title="날짜", yaxis_title="종가 (USD)", hovermode="x unified")
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.error("데이터 로딩에 실패한 종목이 있어요.")
+    fig = go.Figure()
+    for company in selected:
+        ticker = kr_companies[company]
+        df = load_data(ticker)
+        if not df.empty:
+            fig.add_trace(go.Scatter(x=df.index, y=df["Close"], mode="lines", name=company))
+    fig.update_layout(
+        title="📊 최근 1년 주가 변화 (종가 기준)",
+        xaxis_title="날짜",
+        yaxis_title="종가 (KRW)",
+        hovermode="x unified"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("기업을 선택해주세요.")
+    st.info("왼쪽에서 하나 이상의 회사를 선택해주세요.")
