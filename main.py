@@ -1,58 +1,87 @@
 import streamlit as st
-import yfinance as yf
-import plotly.graph_objects as go
-import pandas as pd
-from datetime import datetime, timedelta
+import folium
+from streamlit_folium import st_folium
 
-st.set_page_config(page_title="📈 국내 주요 기업 주가 추이", layout="wide")
+# 페이지 설정
+st.set_page_config(page_title="바르셀로나 맛집 & 숙소 추천", layout="wide")
 
-st.title("🇰🇷 국내 주요 기업 10개 - 최근 주가 변화")
+st.title("🏖️ 바르셀로나 맛집 & 숙소 추천 가이드")
+st.markdown("""
+스페인 바르셀로나는 예술, 건축, 바다, 그리고 미식으로 가득한 도시입니다.  
+아래는 바르셀로나 여행 시 방문할 만한 **맛집과 숙소**를 소개합니다.
+""")
 
-# 최근 1년 기준
-end_date = datetime.today()
-start_date = end_date - timedelta(days=365)
+# 바르셀로나 위치
+barcelona_coords = [41.3874, 2.1686]
 
-# 국내 주요 기업
-kr_companies = {
-    "삼성전자": "005930.KS",
-    "SK하이닉스": "000660.KS",
-    "LG화학": "051910.KS",
-    "삼성바이오로직스": "207940.KS",
-    "현대차": "005380.KS",
-    "NAVER": "035420.KQ",
-    "카카오": "035720.KQ",
-    "삼성SDI": "006400.KS",
-    "POSCO홀딩스": "005490.KS",
-    "기아": "000270.KS",
-}
+# 추천 장소 데이터
+restaurants = [
+    {
+        "name": "Tickets",
+        "desc": "미슐랭 스타 셰프 알베르 아드리아가 운영하는 타파스 레스토랑. 창의적인 요리를 즐길 수 있습니다.",
+        "location": [41.3751, 2.1543]
+    },
+    {
+        "name": "El Xampanyet",
+        "desc": "현지인에게 사랑받는 오래된 바. 저렴하고 맛있는 타파스와 카바(스페인 스파클링 와인)를 즐길 수 있어요.",
+        "location": [41.3839, 2.1815]
+    },
+    {
+        "name": "Cinc Sentits",
+        "desc": "현대적인 카탈루냐 요리를 선보이는 고급 레스토랑. 미슐랭 스타 보유.",
+        "location": [41.3846, 2.1620]
+    }
+]
 
-# 기업 선택
-selected = st.multiselect(
-    "비교할 기업을 선택하세요",
-    options=list(kr_companies.keys()),
-    default=["삼성전자", "SK하이닉스", "현대차"]
-)
+hotels = [
+    {
+        "name": "W Barcelona",
+        "desc": "바르셀로네타 해변 앞에 위치한 고급 호텔. 바다 전망과 루프탑 바가 인기입니다.",
+        "location": [41.3687, 2.1906]
+    },
+    {
+        "name": "Hotel Arts Barcelona",
+        "desc": "해변 근처에 위치한 럭셔리 호텔로, 현대적인 인테리어와 편의 시설이 인상적입니다.",
+        "location": [41.3880, 2.1970]
+    },
+    {
+        "name": "Casa Bonay",
+        "desc": "현지 감성을 살린 부티크 호텔로, 감각적인 디자인과 맛있는 조식이 특징입니다.",
+        "location": [41.3914, 2.1696]
+    }
+]
 
-# 주가 가져오기 함수
-@st.cache_data
-def load_data(ticker):
-    df = yf.download(ticker, start=start_date, end=end_date)
-    return df
+# 지도 생성
+m = folium.Map(location=barcelona_coords, zoom_start=13)
 
-# 그래프 그리기
-if selected:
-    fig = go.Figure()
-    for company in selected:
-        ticker = kr_companies[company]
-        df = load_data(ticker)
-        if not df.empty:
-            fig.add_trace(go.Scatter(x=df.index, y=df["Close"], mode="lines", name=company))
-    fig.update_layout(
-        title="📊 최근 1년 주가 변화 (종가 기준)",
-        xaxis_title="날짜",
-        yaxis_title="종가 (KRW)",
-        hovermode="x unified"
-    )
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("왼쪽에서 하나 이상의 회사를 선택해주세요.")
+# 맛집 마커
+for r in restaurants:
+    folium.Marker(
+        location=r["location"],
+        popup=f"<strong>{r['name']}</strong><br>{r['desc']}",
+        tooltip=r["name"],
+        icon=folium.Icon(color='red', icon='cutlery', prefix='fa')
+    ).add_to(m)
+
+# 숙소 마커
+for h in hotels:
+    folium.Marker(
+        location=h["location"],
+        popup=f"<strong>{h['name']}</strong><br>{h['desc']}",
+        tooltip=h["name"],
+        icon=folium.Icon(color='green', icon='home', prefix='fa')
+    ).add_to(m)
+
+# 지도 출력
+st.subheader("📍 지도에서 맛집과 숙소 보기")
+st_data = st_folium(m, width=800, height=500)
+
+# 맛집 목록
+st.subheader("🍽️ 바르셀로나 추천 맛집")
+for r in restaurants:
+    st.markdown(f"**{r['name']}**  \n{r['desc']}\n")
+
+# 숙소 목록
+st.subheader("🛏️ 바르셀로나 추천 숙소")
+for h in hotels:
+    st.markdown(f"**{h['name']}**  \n{h['desc']}\n")
